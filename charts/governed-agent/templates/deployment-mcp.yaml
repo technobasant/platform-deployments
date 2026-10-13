@@ -1,0 +1,52 @@
+{{- $fn := include "ga.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-mcp
+  labels:
+    {{- include "ga.labels" . | nindent 4 }}
+    {{- include "ga.selector" (dict "component" "mcp" "root" .) | nindent 4 }}
+spec:
+  replicas: {{ .Values.mcp.replicas }}
+  selector:
+    matchLabels: {{- include "ga.selector" (dict "component" "mcp" "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "ga.selector" (dict "component" "mcp" "root" .) | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {{- include "ga.podSecurity" . | nindent 8 }}
+      containers:
+        - name: mcp
+          image: {{ include "ga.pythonImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "ga_mcp.server", "--host", "0.0.0.0", "--port", "8001",
+                    "--allowed-hosts", "{{ $fn }}-mcp:*,{{ $fn }}-mcp.{{ .Release.Namespace }}.svc:*,{{ $fn }}-mcp.{{ .Release.Namespace }}.svc.cluster.local:*,localhost:*,127.0.0.1:*"]
+          env:
+            {{- include "ga.otelEnv" . | nindent 12 }}
+            - {name: OTEL_SERVICE_NAME, value: governed-agent-mcp}
+          ports:
+            - {name: mcp, containerPort: 8001}
+          readinessProbe:
+            tcpSocket: {port: mcp}
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: mcp}
+            periodSeconds: 10
+          resources: {{- toYaml .Values.mcp.resources | nindent 12 }}
+          securityContext: {{- include "ga.containerSecurity" (dict "uid" 10001) | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-mcp
+  labels: {{- include "ga.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "ga.selector" (dict "component" "mcp" "root" .) | nindent 4 }}
+  ports:
+    - {name: mcp, port: 8001, targetPort: mcp}

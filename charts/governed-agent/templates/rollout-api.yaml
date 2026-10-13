@@ -1,0 +1,107 @@
+{{- $f := .Values.api.fault -}}
+{{- $faulty := or (gt (int $f.abortPercent) 0) (gt (int $f.delayPercent) 0) -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "ga.fullname" . }}-api
+  labels:
+    {{- include "ga.labels" . | nindent 4 }}
+    {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 4 }}
+spec:
+  {{- if not .Values.api.hpa.enabled }}
+  replicas: {{ .Values.api.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 6 }}
+  strategy:
+    canary:
+      # No traffic router: the split is by replica count through one Service, so with
+      # five replicas 20% is exactly one canary pod.
+      canaryMetadata: {labels: {role: canary}}
+      stableMetadata: {labels: {role: stable}}
+      analysis:
+        templates:
+          - templateName: {{ include "ga.fullname" . }}-api-health
+        startingStep: 1
+        args:
+          - name: canary-hash
+            valueFrom: {podTemplateHashValue: Latest}
+      steps: {{- toYaml .Values.api.canary.steps | nindent 8 }}
+  template:
+    metadata:
+      labels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 8 }}
+      annotations:
+        checksum/envoy: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {{- include "ga.podSecurity" . | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 14 }}
+      containers:
+        - name: api
+          image: {{ include "ga.pythonImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "ga_api.app"]
+          env:
+            {{- include "ga.dbEnv" . | nindent 12 }}
+            {{- include "ga.otelEnv" . | nindent 12 }}
+            - {name: GA_MODEL, value: {{ .Values.model | quote }}}
+            - {name: GA_MCP_URL, value: "http://{{ include "ga.fullname" . }}-mcp:8001/mcp"}
+            - {name: GA_API_HOST, value: "0.0.0.0"}
+            - {name: OTEL_SERVICE_NAME, value: governed-agent-api}
+          ports:
+            - {name: http, containerPort: 8000}
+          # Probes go straight to the app, not through the sidecar: a faulty release
+          # must become Ready and take traffic, or the canary analysis has nothing to see.
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            failureThreshold: 6
+          lifecycle:
+            preStop:
+              exec: {command: ["python", "-c", "import time; time.sleep(5)"]}
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext: {{- include "ga.containerSecurity" (dict "uid" 10001) | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+        - name: envoy
+          image: "{{ .Values.image.envoy.repository }}:{{ .Values.image.envoy.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - -c
+            - /etc/envoy/envoy.yaml
+            - --log-level
+            - warn
+            {{- if $faulty }}
+            - --config-yaml
+            - {{ printf "{layered_runtime: {layers: [{name: fault, static_layer: {fault.http.abort.abort_percent: %d, fault.http.abort.http_status: %d, fault.http.delay.fixed_delay_percent: %d, fault.http.delay.fixed_duration_ms: %d}}]}}" (int $f.abortPercent) (int $f.abortStatus) (int $f.delayPercent) (int $f.delayMs) | quote }}
+            {{- end }}
+          ports:
+            - {name: proxy, containerPort: 8080}
+            - {name: envoy-admin, containerPort: 9901}
+          readinessProbe:
+            httpGet: {path: /ready, port: envoy-admin}
+            periodSeconds: 3
+          lifecycle:
+            preStop:
+              exec: {command: ["/bin/sh", "-c", "sleep 5"]}
+          resources: {{- toYaml .Values.api.envoyResources | nindent 12 }}
+          securityContext: {{- include "ga.containerSecurity" (dict "uid" 101) | nindent 12 }}
+          volumeMounts:
+            - {name: envoy-config, mountPath: /etc/envoy, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: envoy-config
+          configMap: {name: {{ include "ga.fullname" . }}-envoy}
+        - name: tmp
+          emptyDir: {}

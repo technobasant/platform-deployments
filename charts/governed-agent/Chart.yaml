@@ -1,0 +1,14 @@
+apiVersion: v2
+name: governed-agent
+description: >-
+  governed-agent on Kubernetes: the API as an Argo Rollouts canary behind an Envoy
+  sidecar, the MCP server and the review UI, with PDBs, an HPA, NetworkPolicies and
+  Prometheus analysis that can abort a bad release on its own.
+type: application
+version: 0.1.0
+appVersion: "v0.1.0"
+home: https://github.com/technobasant/governed-agent
+sources:
+  - https://github.com/technobasant/platform-deployments
+maintainers:
+  - name: Basant Bhattarai

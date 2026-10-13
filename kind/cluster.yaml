@@ -1,0 +1,9 @@
+# Three nodes: one control plane, two workers. Workloads land on the workers;
+# draining one of them under load is one of the measurements.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: platform
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker

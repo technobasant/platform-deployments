@@ -1,0 +1,56 @@
+{{/*
+The sidecar config never changes between releases. Fault injection is layered on per
+revision through `--config-yaml` (see rollout-api.yaml), so a stable pod that restarts
+mid-canary still comes back with the stable behaviour.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ga.fullname" . }}-envoy
+  labels: {{- include "ga.labels" . | nindent 4 }}
+data:
+  envoy.yaml: |
+    admin:
+      address: {socket_address: {address: 0.0.0.0, port_value: 9901}}
+    static_resources:
+      listeners:
+        - name: ingress
+          address: {socket_address: {address: 0.0.0.0, port_value: 8080}}
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: ingress
+                    route_config:
+                      virtual_hosts:
+                        - name: api
+                          domains: ["*"]
+                          routes:
+                            - match: {prefix: "/"}
+                              route: {cluster: api, timeout: 120s}
+                    http_filters:
+                      # Inert at 0%; runtime keys fault.http.abort.abort_percent and
+                      # fault.http.delay.fixed_delay_percent switch it on per revision.
+                      - name: envoy.filters.http.fault
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.fault.v3.HTTPFault
+                          abort:
+                            http_status: 500
+                            percentage: {numerator: 0, denominator: HUNDRED}
+                          delay:
+                            fixed_delay: 0.001s
+                            percentage: {numerator: 0, denominator: HUNDRED}
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+      clusters:
+        - name: api
+          type: STATIC
+          connect_timeout: 1s
+          load_assignment:
+            cluster_name: api
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address: {socket_address: {address: 127.0.0.1, port_value: 8000}}

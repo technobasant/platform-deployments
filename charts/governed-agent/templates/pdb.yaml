@@ -1,0 +1,13 @@
+{{- range $c := list "api" "mcp" "web" }}
+{{- $v := index $.Values $c }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ga.fullname" $ }}-{{ $c }}
+  labels: {{- include "ga.labels" $ | nindent 4 }}
+spec:
+  minAvailable: {{ $v.pdb.minAvailable }}
+  selector:
+    matchLabels: {{- include "ga.selector" (dict "component" $c "root" $) | nindent 6 }}
+{{- end }}

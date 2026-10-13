@@ -1,0 +1,9 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl.bak
+*.tfplan
+.DS_Store
+/tmp/
+/.cache/
+results/*.raw

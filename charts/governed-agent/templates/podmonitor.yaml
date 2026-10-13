@@ -1,0 +1,17 @@
+{{- if .Values.monitoring.podMonitor }}
+# The API exposes no metrics of its own; the Envoy sidecar's request counters and
+# latency histogram are what the canary analysis reads.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "ga.fullname" . }}-api-envoy
+  labels: {{- include "ga.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 6 }}
+  podTargetLabels: [rollouts-pod-template-hash, role]
+  podMetricsEndpoints:
+    - port: envoy-admin
+      path: /stats/prometheus
+      interval: {{ .Values.monitoring.scrapeInterval }}
+{{- end }}
