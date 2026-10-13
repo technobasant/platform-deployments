@@ -17,7 +17,7 @@ work=$(mktemp -d)
 kubectl -n local-git port-forward svc/git-server "$port:8080" >/dev/null 2>&1 &
 pf=$!
 trap 'kill $pf 2>/dev/null || true' EXIT
-for _ in $(seq 100); do nc -z 127.0.0.1 "$port" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 600); do nc -z 127.0.0.1 "$port" 2>/dev/null && break; sleep 0.1; done
 
 git clone --quiet "http://127.0.0.1:$port/" "$work"
 cat > "$work/gitops/releases/governed-agent.yaml" <<YAML

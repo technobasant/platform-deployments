@@ -35,7 +35,7 @@ YAML
   echo "# kubectl create, namespace policy-check (platform.policy/enforce=true), $(date -u +%FT%TZ)"
   for f in good bad-latest bad-untagged bad-no-resources bad-root bad-privileged deploy-latest; do
     printf '\n## %s\n' "$f"
-    if res=$(kubectl create --dry-run=server -f "$work/$f.yaml" 2>&1); then
+    if res=$(cd "$work" && kubectl create --dry-run=server -f "$f.yaml" 2>&1); then
       echo "ADMITTED: $res"
     else
       echo "REJECTED:"; sed 's/^/  /' <<<"$res"

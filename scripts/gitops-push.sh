@@ -12,6 +12,6 @@ fi
 kubectl -n local-git port-forward svc/git-server "$port:8080" >/dev/null 2>&1 &
 pf=$!
 trap 'kill $pf 2>/dev/null || true' EXIT
-for _ in $(seq 100); do nc -z 127.0.0.1 "$port" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 600); do nc -z 127.0.0.1 "$port" 2>/dev/null && break; sleep 0.1; done
 git -C "$repo" push --quiet --force "http://127.0.0.1:$port/" "$ref:refs/heads/main"
 echo "pushed $(git -C "$repo" rev-parse --short "$ref") to the in-cluster Git server"
