@@ -15,6 +15,11 @@ const fail4xx = new Counter('fail_4xx');
 
 export const options = {
   discardResponseBodies: true,
+  // NO_REUSE=1 opens a new connection per request. By default k6 keeps connections
+  // alive, like most HTTP clients, and a kept-alive connection stays on the pod it
+  // first reached: new pods (a canary) get only the connections opened after they
+  // became Ready.
+  noConnectionReuse: __ENV.NO_REUSE === '1',
   summaryTrendStats: ['med', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     steady: {

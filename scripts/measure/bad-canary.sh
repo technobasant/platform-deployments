@@ -19,6 +19,7 @@ for i in $(seq "$runs"); do
   k6=$(scripts/load.sh wait "canary-$i")
   scripts/release.sh "$good" >/dev/null
   wait_healthy 600
-  printf '{"run":%d,"note":"%s","abort_percent":%s,"rate":%s,"timeline":%s,"k6":%s}\n' \
-    "$i" "$note" "$abort" "$rate" "$timeline" "$k6" | tee -a results/bad-canary.jsonl
+  printf '{"run":%d,"note":"%s","abort_percent":%s,"rate":%s,"keepalive":%s,"timeline":%s,"k6":%s}\n' \
+    "$i" "$note" "$abort" "$rate" "$([ "${NO_REUSE:-0}" = 1 ] && echo false || echo true)" "$timeline" "$k6" \
+    | tee -a "results/bad-canary$([ "${NO_REUSE:-0}" = 1 ] && echo -noreuse).jsonl"
 done

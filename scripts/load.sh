@@ -2,7 +2,7 @@
 # Run k6 inside the cluster, from the `load` namespace, so the load goes through the
 # Service and the NetworkPolicy exactly as a client's would.
 #
-#   scripts/load.sh start NAME [RATE] [DURATION] [BAD_PREFIX]
+#   scripts/load.sh start NAME [RATE] [DURATION] [BAD_PREFIX]   (NO_REUSE=1: no keep-alive)
 #   scripts/load.sh wait NAME        # blocks, prints the K6_SUMMARY JSON line
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,6 +27,11 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
+      # The load generator runs on the control-plane node: never drained by the tests,
+      # and never sharing a worker with the pods it measures.
+      nodeSelector: {node-role.kubernetes.io/control-plane: ""}
+      tolerations:
+        - {key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule}
       securityContext: {runAsNonRoot: true, runAsUser: 12345, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: k6
@@ -36,6 +41,7 @@ spec:
             - {name: RATE, value: "$rate"}
             - {name: DURATION, value: "$duration"}
             - {name: BAD_PREFIX, value: "$bad"}
+            - {name: NO_REUSE, value: "${NO_REUSE:-0}"}
           resources:
             requests: {cpu: 250m, memory: 128Mi}
             limits: {cpu: "1", memory: 512Mi}

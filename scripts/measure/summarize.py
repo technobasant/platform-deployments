@@ -72,9 +72,8 @@ if ra:
     print("### First attempt: good release, 20 req/s, absolute p95 threshold only\n")
     rollout_table(ra)
 
-bc = load("bad-canary")
-if bc:
-    print(f"### Bad release (sidecar aborts {bc[0]['abort_percent']}% with 500), {bc[0]['rate']} req/s\n")
+def canary_table(bc: list[dict], title: str) -> None:
+    print(f"### Bad release (sidecar aborts {bc[0]['abort_percent']}% with 500), {bc[0]['rate']} req/s, {title}\n")
     rows = []
     vals: dict[str, list[float]] = {}
     for r in bc:
@@ -104,6 +103,12 @@ if bc:
     table(rows, ["run", "push → first bad pod (s)", "first bad pod → abort (s)", "bad pod Ready → abort (s)",
                  "abort → bad pods gone (s)", "requests", "served by bad release", "failed",
                  "bad share, whole run", "bad share while it was Ready", "bad release promoted?"])
+
+
+
+for name, title in (("bad-canary", "keep-alive clients"), ("bad-canary-noreuse", "a new connection per request")):
+    if rows_ := load(name):
+        canary_table(rows_, title)
 
 d = load("drain")
 if d:
