@@ -62,12 +62,21 @@ spec:
             - {name: http, containerPort: 8000}
           # Probes go straight to the app, not through the sidecar: a faulty release
           # must become Ready and take traffic, or the canary analysis has nothing to see.
+          # Startup can take a while on a busy node (imports, first DB connection);
+          # liveness only starts counting once it has finished.
+          startupProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 1
+            failureThreshold: 120
+          # /healthz runs SELECT 1, so readiness follows the database. Liveness does
+          # not: a database outage should take pods out of the Service, not restart them.
           readinessProbe:
             httpGet: {path: /healthz, port: http}
             periodSeconds: 3
+            timeoutSeconds: 2
             failureThreshold: 2
           livenessProbe:
-            httpGet: {path: /healthz, port: http}
+            tcpSocket: {port: http}
             periodSeconds: 10
             failureThreshold: 6
           lifecycle:

@@ -29,6 +29,10 @@ spec:
             - {name: OTEL_SERVICE_NAME, value: governed-agent-mcp}
           ports:
             - {name: mcp, containerPort: 8001}
+          startupProbe:
+            tcpSocket: {port: mcp}
+            periodSeconds: 1
+            failureThreshold: 120
           readinessProbe:
             tcpSocket: {port: mcp}
             periodSeconds: 5

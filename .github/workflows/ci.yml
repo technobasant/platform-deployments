@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Tool versions live in versions.env; the jobs read them from there.
+jobs:
+  manifests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+        with: {version: v4.3.0}
+      - name: helm lint, helm template | kubeconform -strict
+        run: scripts/check-manifests.sh
+
+  policies:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: kyverno test
+        run: |
+          . ./versions.env
+          docker run --rm -v "$PWD":/work -w /work/policies/tests "$KYVERNO_CLI_IMAGE" test .
+
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: fmt, validate, tflint, trivy, checkov (static, never applied)
+        run: scripts/terraform-check.sh
+
+  # The application on a three-node kind cluster with CloudNativePG and Argo Rollouts.
+  # Argo CD, Kyverno and the monitoring stack are left out to stay well under 15
+  # minutes; the policies are covered by the policies job, the rest by MEASUREMENTS.md.
+  e2e-kind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+        with: {version: v4.3.0}
+      - name: versions
+        run: grep -v '^#' versions.env >> "$GITHUB_ENV"
+      - name: build governed-agent from its pinned tag
+        run: scripts/images.sh
+      - uses: helm/kind-action@v1.12.0
+        with:
+          version: v0.33.0
+          node_image: ${{ env.KIND_NODE_IMAGE }}
+          config: kind/cluster.yaml
+          cluster_name: ${{ env.CLUSTER }}
+      - name: load images
+        run: scripts/load-images.sh
+      - name: operators
+        run: |
+          helm install cnpg cloudnative-pg --repo https://cloudnative-pg.github.io/charts \
+            --version "$CNPG_CHART" -n cnpg-system --create-namespace --wait --timeout 5m
+          helm install argo-rollouts argo-rollouts --repo https://argoproj.github.io/argo-helm \
+            --version "$ROLLOUTS_CHART" -n argo-rollouts --create-namespace --wait --timeout 5m \
+            --set controller.replicas=1
+      - name: postgres
+        run: |
+          kubectl apply -f gitops/platform/postgres/
+          kubectl -n governed-agent wait cluster.postgresql.cnpg.io/ga-pg \
+            --for=condition=Ready --timeout=6m
+      - name: governed-agent chart
+        run: |
+          helm install ga charts/governed-agent -n governed-agent \
+            -f gitops/releases/governed-agent.yaml \
+            --set monitoring.podMonitor=false --set otel.enabled=false \
+            --wait --timeout 8m
+          kubectl -n governed-agent wait rollout/ga-api \
+            --for=jsonpath='{.status.phase}'=Healthy --timeout=5m
+      - name: smoke test (/healthz and one demo question)
+        run: |
+          scripts/demo.sh | tee demo.txt
+          grep -q 'orders have the status delivered' demo.txt
+      - name: diagnostics
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+          kubectl -n governed-agent get events --sort-by=.lastTimestamp | tail -40
+          kubectl -n governed-agent logs -l app.kubernetes.io/instance=ga --all-containers --tail=50 --prefix
