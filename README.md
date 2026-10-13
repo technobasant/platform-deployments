@@ -27,7 +27,7 @@ environment and every run. Medians of three runs unless stated.
 | Does a bad release stop itself? | **6 of 6 aborted** (a release failing 30% of its requests): median 30–31 s from the bad pod being Ready to the abort. 11–39 of 4,800 requests failed per run (0.2–0.8%) |
 | How much traffic reaches a bad canary? | 13% of requests while it was Ready from clients that open a connection per request; **1.7–10.9% from keep-alive clients**, against a replica weight of 20% |
 | Could the analysis be trusted as first written? | No. It aborted a good release during a stall that slowed every pod (fixed: p95 judged against stable's), and promoted a bad release that had seen no traffic (fixed: no promotion before 30 canary requests) |
-| Does draining a worker drop requests? | Drained in 31–39 s with the PodDisruptionBudget holding three api pods; 0, 0 and 28 requests failed (the third run hit a host stall: 25 timeouts at 10 s) |
+| Does draining a worker drop requests? | Drained in 31–39 s with the PodDisruptionBudget holding three api pods; 0, 0 and 28 requests failed; in the third run, with every pod on the remaining worker of a busy host, 25 requests timed out at 10 s |
 | Are the admission rules enforced? | 6 of 6 violating manifests rejected by Kyverno, a Deployment included; the compliant Pod admitted; `kyverno test` 22 of 22 in CI |
 | Does the network policy hold? | From the `load` namespace the api answers; from `default` the connection times out |
 | How long does a cold start take? | **12 min 24 s** median from no cluster to all eleven Argo CD Applications Synced and Healthy (10 min 46 s to 27 min 37 s), mostly image pulls onto three new nodes |
