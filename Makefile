@@ -3,7 +3,7 @@ include versions.env
 export
 
 .PHONY: help cluster images load bootstrap demo release-good release-bad lint policy-test \
-        tf-check ci-local measure-bootstrap measure-rollout measure-canary measure-policies \
+        tf-check ci-local e2e measure-bootstrap measure-rollout measure-canary measure-policies \
         measure-drain measure-footprint down
 
 help: ## list targets
@@ -42,6 +42,9 @@ tf-check: ## terraform fmt/validate, tflint, trivy (static; nothing is applied)
 	scripts/terraform-check.sh
 
 ci-local: lint policy-test tf-check ## the static CI jobs, locally
+
+e2e: ## the CI end-to-end test, on a fresh cluster without Argo CD (make cluster first)
+	scripts/e2e-kind.sh
 
 measure-bootstrap: ## zero to all Applications healthy, RUNS times (recreates the cluster)
 	scripts/measure/bootstrap.sh $(or $(RUNS),3)

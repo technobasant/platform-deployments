@@ -28,6 +28,13 @@ def table(rows: list[list[str]], head: list[str]) -> None:
     print()
 
 
+bl = load("baseline")
+if bl:
+    print("### Baseline, no rollout, 60 s per rate\n")
+    table([[str(r["rate"]), str(r["k6"]["requests"]), str(r["k6"]["failed"]), fmt(r["k6"]["p50_ms"]),
+            fmt(r["k6"]["p95_ms"]), fmt(r["k6"]["p99_ms"]), fmt(r["k6"]["max_ms"], 0)] for r in bl],
+          ["req/s", "requests", "failed", "p50 ms", "p95 ms", "p99 ms", "max ms"])
+
 b = load("bootstrap")
 if b:
     print("### Bootstrap\n")
@@ -39,7 +46,7 @@ if b:
 
 ro = load("rollout")
 if ro:
-    print("### Good release through the canary, 40 req/s\n")
+    print(f"### Good release through the canary, {ro[0].get('rate', 20)} req/s\n")
     rows = []
     for r in ro:
         k = r["k6"]
@@ -54,7 +61,7 @@ if ro:
 
 bc = load("bad-canary")
 if bc:
-    print("### Bad release (sidecar aborts 30% with 500), 40 req/s\n")
+    print(f"### Bad release (sidecar aborts {bc[0]['abort_percent']}% with 500), {bc[0]['rate']} req/s\n")
     rows = []
     vals: dict[str, list[float]] = {}
     for r in bc:
@@ -87,7 +94,7 @@ if bc:
 
 d = load("drain")
 if d:
-    print("### Drain a worker, 40 req/s\n")
+    print(f"### Drain a worker, {d[0].get('rate', 20)} req/s\n")
     rows = []
     for r in d:
         k = r["k6"]

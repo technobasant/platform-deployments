@@ -1,5 +1,6 @@
 {{- $a := .Values.api.canary.analysis -}}
 {{- $sel := `envoy_http_conn_manager_prefix="ingress",rollouts_pod_template_hash="{{args.canary-hash}}"` -}}
+{{- $stable := `envoy_http_conn_manager_prefix="ingress",rollouts_pod_template_hash!="{{args.canary-hash}}"` -}}
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -25,6 +26,10 @@ spec:
             (sum(rate(envoy_http_downstream_rq_xx{envoy_response_code_class="5",{{ $sel }}}[{{ $a.window }}])) or vector(0))
             /
             (sum(rate(envoy_http_downstream_rq_total{ {{- $sel -}} }[{{ $a.window }}])) > 0 or vector(1))
+    # The canary's p95 counts against it only when it is also more than
+    # {{ $a.p95MaxRatioToStable }}x the stable pods' p95 over the same window. With an absolute
+    # threshold alone, a stall that slowed every pod on the cluster aborted a good
+    # release whose p95 was lower than stable's (MEASUREMENTS.md).
     - name: p95-latency-ms
       interval: {{ $a.interval }}
       initialDelay: {{ $a.initialDelay }}
@@ -35,4 +40,8 @@ spec:
         prometheus:
           address: "{{`{{args.prometheus}}`}}"
           query: |
-            histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $sel -}} }[{{ $a.window }}])))
+            (
+              histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $sel -}} }[{{ $a.window }}])))
+              > on() ({{ $a.p95MaxRatioToStable }} * histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $stable -}} }[{{ $a.window }}]))))
+            )
+            or on() vector(0)

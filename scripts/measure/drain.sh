@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Drain the worker that does not host the PostgreSQL primary while k6 sends a constant
-# 40 req/s, then uncordon it and restart the workloads so they spread out again.
+# 20 req/s, then uncordon it and restart the workloads so they spread out again.
 # (Draining the primary's node is a database switchover first; see MEASUREMENTS.md.)
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
-runs=${1:-3} rate=${RATE:-40}
+runs=${1:-3} rate=${RATE:-20}
 for i in $(seq "$runs"); do
   wait_healthy 600
   primary=$(kubectl -n $NS get cluster.postgresql.cnpg.io ga-pg -o jsonpath='{.status.currentPrimary}')
@@ -21,7 +21,7 @@ for i in $(seq "$runs"); do
   t1=$(now)
   k6=$(scripts/load.sh wait "drain-$i")
   kubectl uncordon "$target" >/dev/null
-  printf '{"run":%d,"node":"%s","pods_on_node":%s,"api_pods_on_node":%s,"drain_s":%s,"drain":"%s","k6":%s}\n' \
+  printf '{"run":%d,"rate":'"$rate"',"node":"%s","pods_on_node":%s,"api_pods_on_node":%s,"drain_s":%s,"drain":"%s","k6":%s}\n' \
     "$i" "$target" "$pods_on_target" "$api_on_target" "$(since "$t0" "$t1")" "$status" "$k6" \
     | tee -a results/drain.jsonl
   # Spread the workloads back over both workers before the next run.

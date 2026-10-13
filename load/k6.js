@@ -8,6 +8,10 @@ const badPrefix = __ENV.BAD_PREFIX || 'bad-';
 const hitsBad = new Counter('hits_bad_release');
 const hitsOther = new Counter('hits_other_release');
 const hitsNone = new Counter('hits_no_release');
+// Why a request failed: no response at all (timeout, reset), or an HTTP status.
+const failNoResponse = new Counter('fail_no_response');
+const fail5xx = new Counter('fail_5xx');
+const fail4xx = new Counter('fail_4xx');
 
 export const options = {
   discardResponseBodies: true,
@@ -32,6 +36,9 @@ export default function () {
   if (!release) hitsNone.add(1);
   else if (release.startsWith(badPrefix)) hitsBad.add(1);
   else hitsOther.add(1);
+  if (res.status === 0) failNoResponse.add(1);
+  else if (res.status >= 500) fail5xx.add(1);
+  else if (res.status >= 400) fail4xx.add(1);
 }
 
 export function handleSummary(data) {
@@ -49,6 +56,9 @@ export function handleSummary(data) {
     hits_bad_release: v('hits_bad_release', 'count'),
     hits_other_release: v('hits_other_release', 'count'),
     hits_no_release: v('hits_no_release', 'count'),
+    fail_no_response: v('fail_no_response', 'count'),
+    fail_5xx: v('fail_5xx', 'count'),
+    fail_4xx: v('fail_4xx', 'count'),
   };
   return { stdout: `K6_SUMMARY ${JSON.stringify(out)}\n` };
 }

@@ -68,6 +68,8 @@ api:
       count: 12
       errorRateMax: 0.05
       p95MaxMs: 500
+      # ...and only when it is also this many times the stable pods' p95.
+      p95MaxRatioToStable: 2
   hpa:
     enabled: true
     minReplicas: 5

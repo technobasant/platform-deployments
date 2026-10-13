@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # A bad release: the same images, but the Envoy sidecar of the new revision aborts
 # ABORT% of requests with a 500 (see docs/fault-injection.md). k6 sends a constant
-# 40 req/s and counts replies per release from the x-release header. Afterwards the
+# 20 req/s and counts replies per release from the x-release header. Afterwards the
 # previous stable release is restored by another commit, which Argo Rollouts treats
 # as a rollback to the stable ReplicaSet (no new pods).
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
-runs=${1:-3} rate=${RATE:-40} abort=${ABORT:-30}
+runs=${1:-3} rate=${RATE:-20} abort=${ABORT:-30}
 for i in $(seq "$runs"); do
   wait_healthy 600
   good=$(stable_note)
