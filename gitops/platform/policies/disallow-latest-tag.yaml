@@ -6,7 +6,7 @@ metadata:
     policies.kyverno.io/description: Images must carry an explicit, immutable tag.
 spec:
   validationFailureAction: Enforce
-  background: true
+  background: false
   rules:
     - name: require-explicit-tag
       match:

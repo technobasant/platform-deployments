@@ -1,5 +1,8 @@
 {{- $r := .Values -}}
-{{/* wave -3: cluster services and operators (CRDs first) */}}
+{{/* wave -3: cluster services and operators (CRDs first).
+     Everything is trimmed to what the platform uses: Kyverno runs only its admission
+     controller, and Prometheus scrapes only the PodMonitors (Envoy, PostgreSQL) with
+     no recording or alerting rules. See "Limits" in the README. */}}
 {{ include "root.app" (dict "name" "metrics-server" "ns" "kube-system" "wave" -3 "source" (dict
   "repoURL" "https://kubernetes-sigs.github.io/metrics-server" "chart" "metrics-server" "targetRevision" "3.14.0"
   "helm" (dict "valuesObject" (dict "args" (list "--kubelet-insecure-tls"))))) }}
@@ -18,9 +21,10 @@
   "repoURL" "https://kyverno.github.io/kyverno" "chart" "kyverno" "targetRevision" "3.9.1"
   "helm" (dict "valuesObject" (dict
      "admissionController" (dict "replicas" 1)
-     "backgroundController" (dict "replicas" 1)
-     "cleanupController" (dict "replicas" 1)
-     "reportsController" (dict "replicas" 1))))) }}
+     "features" (dict "admissionReports" (dict "enabled" false) "policyReports" (dict "enabled" false))
+     "backgroundController" (dict "enabled" false)
+     "cleanupController" (dict "enabled" false)
+     "reportsController" (dict "enabled" false))))) }}
 {{- if $r.monitoring }}
 ---
 {{ include "root.app" (dict "name" "kube-prometheus-stack" "ns" "monitoring" "wave" -3 "ssa" true "source" (dict
@@ -34,6 +38,11 @@
      "kubeScheduler" (dict "enabled" false)
      "kubeEtcd" (dict "enabled" false)
      "kubeProxy" (dict "enabled" false)
+     "kubeApiServer" (dict "enabled" false)
+     "kubelet" (dict "enabled" false)
+     "coreDns" (dict "enabled" false)
+     "kubeStateMetrics" (dict "enabled" false)
+     "defaultRules" (dict "create" false)
      "prometheus" (dict "prometheusSpec" (dict
         "retention" "12h"
         "scrapeInterval" "15s"
