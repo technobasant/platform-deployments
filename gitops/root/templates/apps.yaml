@@ -1,26 +1,44 @@
 {{- $r := .Values -}}
+{{- /* Probes for third-party controllers: the charts' 1 s timeouts were the first
+       thing to fail when the API server was busy, and each restart (informer resync,
+       full lists) made it busier. 5 s timeouts and more failures before a restart. */}}
+{{- $probe := dict "timeoutSeconds" 5 "failureThreshold" 6 }}
 {{/* wave -3: cluster services and operators (CRDs first).
      Everything is trimmed to what the platform uses: Kyverno runs only its admission
      controller, and Prometheus scrapes only the PodMonitors (Envoy, PostgreSQL) with
      no recording or alerting rules. See "Limits" in the README. */}}
 {{ include "root.app" (dict "name" "metrics-server" "ns" "kube-system" "wave" -3 "source" (dict
   "repoURL" "https://kubernetes-sigs.github.io/metrics-server" "chart" "metrics-server" "targetRevision" "3.14.0"
-  "helm" (dict "valuesObject" (dict "args" (list "--kubelet-insecure-tls"))))) }}
+  "helm" (dict "valuesObject" (dict
+     "args" (list "--kubelet-insecure-tls")
+     "livenessProbe" (dict "httpGet" (dict "path" "/livez" "port" "https" "scheme" "HTTPS") "periodSeconds" 10 "timeoutSeconds" 5 "failureThreshold" 6)
+     "readinessProbe" (dict "httpGet" (dict "path" "/readyz" "port" "https" "scheme" "HTTPS") "initialDelaySeconds" 10 "periodSeconds" 10 "timeoutSeconds" 5 "failureThreshold" 3))))) }}
 ---
 {{ include "root.app" (dict "name" "cnpg-operator" "ns" "cnpg-system" "wave" -3 "ssa" true "source" (dict
-  "repoURL" "https://cloudnative-pg.github.io/charts" "chart" "cloudnative-pg" "targetRevision" "0.29.1")) }}
+  "repoURL" "https://cloudnative-pg.github.io/charts" "chart" "cloudnative-pg" "targetRevision" "0.29.1"
+  "helm" (dict "valuesObject" (dict
+     "livenessProbe" $probe "readinessProbe" (dict "timeoutSeconds" 5)
+     "startupProbe" (dict "failureThreshold" 24 "periodSeconds" 5 "timeoutSeconds" 5))))) }}
 ---
 {{ include "root.app" (dict "name" "argo-rollouts" "ns" "argo-rollouts" "wave" -3 "ssa" true "source" (dict
   "repoURL" "https://argoproj.github.io/argo-helm" "chart" "argo-rollouts" "targetRevision" "2.43.7"
-  "helm" (dict "valuesObject" (dict "controller" (dict "replicas" 1))))) }}
+  "helm" (dict "valuesObject" (dict "controller" (dict "replicas" 1 "livenessProbe" (dict "failureThreshold" 6)))))) }}
 ---
 {{- /* Kyverno's chart renders empty labels/annotations on its CRDs, which reads as drift forever. */}}
+{{- /* Kyverno's webhooks see only the namespaces its policies cover. Cluster-wide,
+       a crash-looping admission controller blocked every Job and Pod in every
+       namespace (failurePolicy Fail), including the operators trying to recover. */}}
 {{ include "root.app" (dict "name" "kyverno" "ns" "kyverno" "wave" -3 "ssa" true
   "ignore" (list (dict "group" "apiextensions.k8s.io" "kind" "CustomResourceDefinition" "jsonPointers" (list "/metadata/annotations" "/metadata/labels")))
   "source" (dict
   "repoURL" "https://kyverno.github.io/kyverno" "chart" "kyverno" "targetRevision" "3.9.1"
   "helm" (dict "valuesObject" (dict
-     "admissionController" (dict "replicas" 1)
+     "admissionController" (dict "replicas" 1
+        "livenessProbe" (dict "timeoutSeconds" 10 "failureThreshold" 6)
+        "readinessProbe" (dict "timeoutSeconds" 10)
+        "startupProbe" (dict "timeoutSeconds" 5 "failureThreshold" 40))
+     "config" (dict "webhooks" (dict "namespaceSelector" (dict "matchExpressions" (list
+        (dict "key" "platform.policy/enforce" "operator" "In" "values" (list "true"))))))
      "features" (dict "admissionReports" (dict "enabled" false) "policyReports" (dict "enabled" false))
      "backgroundController" (dict "enabled" false)
      "cleanupController" (dict "enabled" false)
@@ -38,6 +56,7 @@
      "kubeScheduler" (dict "enabled" false)
      "kubeEtcd" (dict "enabled" false)
      "kubeProxy" (dict "enabled" false)
+     "prometheusOperator" (dict "livenessProbe" $probe "readinessProbe" (dict "timeoutSeconds" 5))
      "kubeApiServer" (dict "enabled" false)
      "kubelet" (dict "enabled" false)
      "coreDns" (dict "enabled" false)

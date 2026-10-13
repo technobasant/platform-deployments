@@ -14,6 +14,7 @@ spec:
     # Measured on the canary pods only, from the Envoy sidecar's own counters.
     - name: error-rate
       interval: {{ $a.interval }}
+      initialDelay: {{ $a.initialDelay }}
       count: {{ $a.count }}
       failureLimit: {{ $a.failureLimit }}
       successCondition: "isNaN(result[0]) || result[0] <= {{ $a.errorRateMax }}"
@@ -21,11 +22,12 @@ spec:
         prometheus:
           address: "{{`{{args.prometheus}}`}}"
           query: |
-            (sum(rate(envoy_http_downstream_rq_xx{envoy_response_code_class="5",{{ $sel }}}[1m])) or vector(0))
+            (sum(rate(envoy_http_downstream_rq_xx{envoy_response_code_class="5",{{ $sel }}}[{{ $a.window }}])) or vector(0))
             /
-            (sum(rate(envoy_http_downstream_rq_total{ {{- $sel -}} }[1m])) > 0 or vector(1))
+            (sum(rate(envoy_http_downstream_rq_total{ {{- $sel -}} }[{{ $a.window }}])) > 0 or vector(1))
     - name: p95-latency-ms
       interval: {{ $a.interval }}
+      initialDelay: {{ $a.initialDelay }}
       count: {{ $a.count }}
       failureLimit: {{ $a.failureLimit }}
       successCondition: "isNaN(result[0]) || result[0] <= {{ $a.p95MaxMs }}"
@@ -33,4 +35,4 @@ spec:
         prometheus:
           address: "{{`{{args.prometheus}}`}}"
           query: |
-            histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $sel -}} }[1m])))
+            histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $sel -}} }[{{ $a.window }}])))

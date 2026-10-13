@@ -36,8 +36,10 @@ api:
   # Free text recorded on the pod template; changing it ships a new revision of the
   # same build (used to measure a healthy rollout).
   revisionNote: initial
+  # A 100m request made the HPA's 70% target 70m, which a pod passes while it is
+  # still importing; scale-outs during a rollout then started more cold pods.
   resources:
-    requests: {cpu: 100m, memory: 192Mi}
+    requests: {cpu: 250m, memory: 192Mi}
     limits: {cpu: "1", memory: 512Mi}
   # Fault injection happens in the Envoy sidecar, not in governed-agent's code. Any
   # non-zero value changes the pod template, so it ships as a new Rollout revision.
@@ -57,6 +59,10 @@ api:
       - pause: {duration: 60s}
     analysis:
       interval: 15s
+      # Skip a new pod's first requests (cold imports, connection pool warm-up),
+      # and look at a 30 s window so they age out of it quickly.
+      initialDelay: 30s
+      window: 30s
       # Abort on the first failed measurement; a canary is cheap to retry.
       failureLimit: 0
       count: 12

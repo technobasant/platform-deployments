@@ -79,6 +79,7 @@ spec:
           livenessProbe:
             tcpSocket: {port: http}
             periodSeconds: 10
+            timeoutSeconds: 3
             failureThreshold: 6
           lifecycle:
             preStop:
@@ -95,6 +96,9 @@ spec:
             - /etc/envoy/envoy.yaml
             - --log-level
             - warn
+            # Envoy starts one worker per visible CPU (every host CPU on kind).
+            - --concurrency
+            - "2"
             {{- if $faulty }}
             - --config-yaml
             - {{ printf "{layered_runtime: {layers: [{name: fault, static_layer: {fault.http.abort.abort_percent: %d, fault.http.abort.http_status: %d, fault.http.delay.fixed_delay_percent: %d, fault.http.delay.fixed_duration_ms: %d}}]}}" (int $f.abortPercent) (int $f.abortStatus) (int $f.delayPercent) (int $f.delayMs) | quote }}
@@ -109,6 +113,7 @@ spec:
           readinessProbe:
             httpGet: {path: /ready, port: envoy-admin}
             periodSeconds: 3
+            timeoutSeconds: 2
           lifecycle:
             preStop:
               exec: {command: ["/bin/sh", "-c", "sleep 5"]}

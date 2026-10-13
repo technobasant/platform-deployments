@@ -13,5 +13,10 @@ spec:
   podMetricsEndpoints:
     - port: envoy-admin
       path: /stats/prometheus
+      # Envoy exports a few thousand series per pod; the analysis needs the
+      # ingress listener's request counters and latency histogram.
+      params:
+        usedonly: [""]
+        filter: ['^http\.ingress\.downstream_rq']
       interval: {{ .Values.monitoring.scrapeInterval }}
 {{- end }}
