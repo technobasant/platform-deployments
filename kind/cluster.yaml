@@ -5,15 +5,26 @@ apiVersion: kind.x-k8s.io/v1alpha4
 name: platform
 nodes:
   - role: control-plane
-    # etcd on the node's tmpfs. On the Docker VM's disk, fsync latency during
-    # bootstrap timed out etcd requests until the controller manager lost its
-    # leader lease and crash-looped. The cluster is disposable, so durability
-    # across node restarts is not worth that.
     kubeadmConfigPatches:
+      # etcd on the node's tmpfs. On the Docker VM's disk, fsync latency during
+      # bootstrap timed out etcd requests. The cluster is disposable, so durability
+      # across node restarts is not worth that.
+      #
+      # Longer leader leases for the controller manager and scheduler: with the
+      # defaults (15 s lease, 10 s renew deadline) a busy API server cost them their
+      # lease, they exited, and crash-loop back-off kept them down for minutes.
       - |
         kind: ClusterConfiguration
         etcd:
           local:
             dataDir: /tmp/etcd
+        controllerManager:
+          extraArgs:
+            - {name: leader-elect-lease-duration, value: 60s}
+            - {name: leader-elect-renew-deadline, value: 45s}
+        scheduler:
+          extraArgs:
+            - {name: leader-elect-lease-duration, value: 60s}
+            - {name: leader-elect-renew-deadline, value: 45s}
   - role: worker
   - role: worker
