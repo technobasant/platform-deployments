@@ -31,9 +31,8 @@ platform is comfortable.
 | after all runs, settled 10 min | 40 | 2401 | 0 | 4.3 | 59.7 | 295.7 | 604 |
 
 The spread is the host, not the platform: the same 20 req/s gave a p95 of 25 ms on a
-fresh cluster and 542 ms in a later minute on an idle cluster.
-Every number below should be read with that in mind, and the runs that a host stall
-visibly hit say so.
+fresh cluster and 542 ms in a later minute on an idle cluster. Every number below
+should be read with that in mind, and the runs that a host stall visibly hit say so.
 
 ## 1. Bootstrap: zero to every Application healthy
 
@@ -107,14 +106,14 @@ control plane):
 * **Envoy draining client connections on shutdown** was the first guess for the
   remaining 1–3 failures (keep-alive connections outliving a pod's removal from the
   Service). It made no difference: 5, 5 and 2.
-* **Idle timeout and retry.** Every failure was a 5xx, and the application had logged
-  no errors in the pods still there to check. Envoy now closes idle connections to the app
-  after 4 s, before uvicorn's 5 s keep-alive timeout can close them under it, and
-  retries once a request the app never received (`reset-before-request`, safe for
-  any method). Three runs, no failures. After the change the sampled pods showed
-  Envoy closing idle connections (3–5 per pod) and no retries, which fits the
-  keep-alive race but does not prove it; the 5xx access log is there to settle it
-  if failures come back.
+* **Idle timeout and retry.** Every failure was a 5xx, and the application had
+  logged no errors in the pods still there to check. Envoy now closes idle
+  connections to the app after 4 s, before uvicorn's 5 s keep-alive timeout can
+  close them under it, and retries once a request the app never received
+  (`reset-before-request`, safe for any method). Three runs, no failures. After the
+  change the sampled pods showed Envoy closing idle connections (0–5 times per pod)
+  and no retries, which fits the keep-alive race but does not prove it; the 5xx
+  access log is there to settle it if failures come back.
 
 ## 3. A bad release under load
 
@@ -151,9 +150,8 @@ clients, and `NO_REUSE=1`, a new connection per request.
 Ready (median), and no bad release was promoted in these six runs. Detection time is
 almost exactly the analysis's initial delay: in five of six runs the first
 measurement, 30 s after the canary starts, already saw a 5xx rate of 0.24–0.31
-against a 5% limit. The delay is
-there because without it a good canary's cold first requests failed the p95 check; it
-costs 30 s of exposure on every bad release.
+against a 5% limit. The delay is there because without it a good canary's cold
+first requests failed the p95 check; it costs 30 s of exposure on every bad release.
 
 **How much traffic the bad release got depends on the client.** With replica
 weighting, 20% means one pod in five. Clients opening a new connection per request
@@ -190,16 +188,16 @@ so every rejection is Kyverno's. Full output: `results/policies.txt`.
 | manifest | violation | result | policy / rule: message |
 |---|---|---|---|
 | `good` | compliant Pod | admitted | |
-| `bad-latest` | Pod, image `:latest` | **rejected** | `disallow-latest-tag` / `require-explicit-tag`: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag. |
-| `bad-untagged` | Pod, image without a tag | **rejected** | `disallow-latest-tag` / `require-explicit-tag`: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag. |
+| `bad-latest` | Pod, image `:latest` | **rejected** | `disallow-latest-tag` / `require-explicit-tag`: Image tag ':latest' (or no tag) is not allowed; pin an immutable tag. |
+| `bad-untagged` | Pod, image without a tag | **rejected** | `disallow-latest-tag` / `require-explicit-tag`: Image tag ':latest' (or no tag) is not allowed; pin an immutable tag. |
 | `bad-no-resources` | Pod, no requests or limits | **rejected** | `require-requests-limits` / `containers-have-resources`: Every container needs cpu and memory requests and a memory limit. |
 | `bad-root` | Pod, no `runAsNonRoot` | **rejected** | `require-run-as-non-root` / `run-as-non-root`: Set runAsNonRoot: true on the pod or on every container. |
 | `bad-privileged` | Pod, `privileged: true` | **rejected** | `disallow-privileged` / `no-privileged`: Privileged containers and allowPrivilegeEscalation: true are not allowed. |
-| `deploy-latest` | Deployment, image `:latest` | **rejected** | `disallow-latest-tag` / `autogen-require-explicit-tag`: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag. |
+| `deploy-latest` | Deployment, image `:latest` | **rejected** | `disallow-latest-tag` / `autogen-require-explicit-tag`: Image tag ':latest' (or no tag) is not allowed; pin an immutable tag. |
 
 The Deployment is rejected by the rule Kyverno generates for Pod controllers
-(`autogen-require-explicit-tag`), at `kubectl apply` rather than when its pods fail
-to start.
+(`autogen-require-explicit-tag`): at admission of the Deployment itself, not later
+when its pods fail to start.
 
 The same fixtures run without a cluster in CI: `kyverno test` passes 22 of 22 cases.
 
@@ -216,7 +214,7 @@ namespace and from `default`:
 **Method.** `scripts/measure/drain.sh`. k6 at 20 req/s for 4 minutes; after 20 s,
 `kubectl drain` on the worker that does not host the PostgreSQL primary
 (`--ignore-daemonsets --delete-emptydir-data --timeout=300s`). Everything evictable
-moves to the other worker. Then the worker is uncordoned and the workloads restarted so
+moves to the other worker. "Pods on node" includes the two DaemonSet pods that stay. Then the worker is uncordoned and the workloads restarted so
 the next run starts spread out.
 
 | run | node | pods on node | api pods on node | drain (s) | result | requests | failed | p95 ms | max ms |
@@ -250,6 +248,7 @@ reason.
 namespace, plus `docker stats` for the node containers, with the platform idle.
 
 Taken five minutes after the last drain run's restarts had settled.
+
 #### kubectl top nodes
 ```
 NAME                     CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
