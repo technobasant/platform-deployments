@@ -1,9 +1,19 @@
-# Three nodes: one control plane, two workers. Workloads land on the workers;
-# draining one of them under load is one of the measurements.
+# One control plane and two workers, each a container. Workloads run on the workers;
+# the control plane keeps kind's NoSchedule taint.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: platform
 nodes:
   - role: control-plane
+    # etcd on the node's tmpfs. On the Docker VM's disk, fsync latency during
+    # bootstrap timed out etcd requests until the controller manager lost its
+    # leader lease and crash-looped. The cluster is disposable, so durability
+    # across node restarts is not worth that.
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        etcd:
+          local:
+            dataDir: /tmp/etcd
   - role: worker
   - role: worker
