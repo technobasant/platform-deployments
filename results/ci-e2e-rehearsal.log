@@ -1,0 +1,11 @@
+== operators (0s)
+== postgres (89s)
+Warning: spec.monitoring.enablePodMonitor is deprecated and will be removed in a future release. Please migrate to manually managing your PodMonitor resources. Set this field to false and create a PodMonitor resource for your cluster as described in the documentation.
+== governed-agent chart (256s)
+== smoke test (345s)
+healthz: {"ok":true,"model":"demo"}
+question: How many orders were delivered?
+run:      completed / published
+finding:  answered / published
+answer:   6,334 orders have the status delivered.
+== passed (367s)
