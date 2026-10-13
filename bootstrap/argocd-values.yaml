@@ -19,6 +19,17 @@ configs:
         end
       end
       return hs
+    # Without this a CloudNativePG Cluster counts as healthy before it has a primary,
+    # and the application's wave starts against a database that is not there yet.
+    resource.customizations.health.postgresql.cnpg.io_Cluster: |
+      hs = {status = "Progressing", message = "waiting for the cluster to report status"}
+      if obj.status ~= nil and obj.status.phase ~= nil then
+        hs.message = obj.status.phase
+        if obj.status.phase == "Cluster in healthy state" and obj.status.readyInstances == obj.spec.instances then
+          hs.status = "Healthy"
+        end
+      end
+      return hs
 
 dex:
   enabled: false

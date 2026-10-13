@@ -11,7 +11,10 @@
   "repoURL" "https://argoproj.github.io/argo-helm" "chart" "argo-rollouts" "targetRevision" "2.43.7"
   "helm" (dict "valuesObject" (dict "controller" (dict "replicas" 1))))) }}
 ---
-{{ include "root.app" (dict "name" "kyverno" "ns" "kyverno" "wave" -3 "ssa" true "source" (dict
+{{- /* Kyverno's chart renders empty labels/annotations on its CRDs, which reads as drift forever. */}}
+{{ include "root.app" (dict "name" "kyverno" "ns" "kyverno" "wave" -3 "ssa" true
+  "ignore" (list (dict "group" "apiextensions.k8s.io" "kind" "CustomResourceDefinition" "jsonPointers" (list "/metadata/annotations" "/metadata/labels")))
+  "source" (dict
   "repoURL" "https://kyverno.github.io/kyverno" "chart" "kyverno" "targetRevision" "3.9.1"
   "helm" (dict "valuesObject" (dict
      "admissionController" (dict "replicas" 1)
@@ -40,13 +43,15 @@
         "resources" (dict "requests" (dict "cpu" "200m" "memory" "512Mi") "limits" (dict "memory" "1536Mi")))))))) }}
 ---
 {{ include "root.app" (dict "name" "jaeger" "ns" "observability" "wave" -2 "source" (dict
-  "repoURL" "https://jaegertracing.github.io/helm-charts" "chart" "jaeger" "targetRevision" "4.16.0")) }}
+  "repoURL" "https://jaegertracing.github.io/helm-charts" "chart" "jaeger" "targetRevision" "4.16.0"
+  "helm" (dict "valuesObject" (dict "jaeger" (dict "resources" (dict "requests" (dict "cpu" "50m" "memory" "128Mi") "limits" (dict "memory" "512Mi"))))))) }}
 ---
 {{ include "root.app" (dict "name" "otel-collector" "ns" "observability" "wave" -2 "source" (dict
   "repoURL" "https://open-telemetry.github.io/opentelemetry-helm-charts" "chart" "opentelemetry-collector" "targetRevision" "0.175.1"
   "helm" (dict "valuesObject" (dict
      "mode" "deployment"
      "image" (dict "repository" "otel/opentelemetry-collector-contrib")
+     "resources" (dict "requests" (dict "cpu" "50m" "memory" "128Mi") "limits" (dict "memory" "384Mi"))
      "config" (dict
         "exporters" (dict "otlp" (dict "endpoint" "jaeger.observability.svc:4317" "tls" (dict "insecure" true)))
         "service" (dict "pipelines" (dict "traces" (dict "receivers" (list "otlp") "processors" (list "memory_limiter" "batch") "exporters" (list "otlp"))))))))) }}

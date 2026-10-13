@@ -20,6 +20,8 @@ spec:
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
+      # Service links would set GA_API_PORT=tcp://... and break the app\'s own settings.
+      enableServiceLinks: false
       securityContext: {{- include "ga.podSecurity" . | nindent 8 }}
       containers:
         - name: migrate

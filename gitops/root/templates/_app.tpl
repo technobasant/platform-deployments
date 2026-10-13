@@ -1,4 +1,4 @@
-{{/* One Argo CD Application. Args: root, name, ns, wave, source (dict), ssa (bool). */}}
+{{/* One Argo CD Application. Args: name, ns, wave, source (dict), ssa (bool), ignore (list). */}}
 {{- define "root.app" -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -14,6 +14,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: {{ .ns }}
   source: {{- toYaml .source | nindent 4 }}
+  {{- with .ignore }}
+  ignoreDifferences: {{- toYaml . | nindent 4 }}
+  {{- end }}
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     retry:

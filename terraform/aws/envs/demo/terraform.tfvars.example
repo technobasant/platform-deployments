@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars. Placeholders only; this configuration has never been applied.
+region                  = "eu-west-1"
+env                     = "demo"
+api_public_access_cidrs = ["203.0.113.10/32"] # documentation range (RFC 5737)
+admin_principal_arns    = ["arn:aws:iam::<account-id>:role/platform-admin"]
+db_multi_az             = false

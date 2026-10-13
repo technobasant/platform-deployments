@@ -36,6 +36,8 @@ spec:
         checksum/envoy: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum | trunc 16 }}
     spec:
       automountServiceAccountToken: false
+      # Service links would set GA_API_PORT=tcp://... and break the app\'s own settings.
+      enableServiceLinks: false
       securityContext: {{- include "ga.podSecurity" . | nindent 8 }}
       terminationGracePeriodSeconds: 30
       topologySpreadConstraints:

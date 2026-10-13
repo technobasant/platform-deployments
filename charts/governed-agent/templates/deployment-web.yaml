@@ -15,6 +15,8 @@ spec:
       labels: {{- include "ga.selector" (dict "component" "web" "root" .) | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      # Service links would set GA_API_PORT=tcp://... and break the app\'s own settings.
+      enableServiceLinks: false
       securityContext: {{- include "ga.podSecurity" . | nindent 8 }}
       containers:
         - name: web
@@ -25,10 +27,10 @@ spec:
           ports:
             - {name: http, containerPort: 3000}
           readinessProbe:
-            httpGet: {path: /, port: http}
+            tcpSocket: {port: http}
             periodSeconds: 5
           livenessProbe:
-            httpGet: {path: /, port: http}
+            tcpSocket: {port: http}
             periodSeconds: 15
           resources: {{- toYaml .Values.web.resources | nindent 12 }}
           securityContext: {{- include "ga.containerSecurity" (dict "uid" 1000) | nindent 12 }}
