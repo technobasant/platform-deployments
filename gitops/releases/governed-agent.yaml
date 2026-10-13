@@ -1,0 +1,8 @@
+# The release being deployed. A rollout is a commit to this file.
+image:
+  python: {tag: v0.1.0}
+  web: {tag: v0.1.0}
+api:
+  fault: {abortPercent: 0, delayPercent: 0}
+  # Bumped to ship a new revision of an unchanged build (the "good" rollout test).
+  revisionNote: "initial"

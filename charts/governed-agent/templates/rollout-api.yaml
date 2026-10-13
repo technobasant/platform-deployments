@@ -32,6 +32,7 @@ spec:
     metadata:
       labels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 8 }}
       annotations:
+        release-note: {{ .Values.api.revisionNote | quote }}
         checksum/envoy: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum | trunc 16 }}
     spec:
       automountServiceAccountToken: false

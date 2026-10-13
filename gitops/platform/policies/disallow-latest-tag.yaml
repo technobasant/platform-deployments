@@ -1,0 +1,30 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/description: Images must carry an explicit, immutable tag.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-explicit-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchLabels: {platform.policy/enforce: "true"}
+      validate:
+        message: "Image tag ':latest' (or no tag) is not allowed; pin an immutable tag."
+        foreach:
+          - list: "request.object.spec.[ephemeralContainers, initContainers, containers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: Equals
+                    value: "*:latest"
+                  - key: "{{ contains(element.image, ':') || contains(element.image, '@') }}"
+                    operator: Equals
+                    value: false

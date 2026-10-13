@@ -1,0 +1,8 @@
+# Where Argo CD reads this repository from. `make bootstrap` points it at the in-cluster
+# Git server; after publishing, set it to the GitHub URL.
+repoURL: http://git-server.local-git.svc.cluster.local:8080/
+targetRevision: main
+# Values file for governed-agent, relative to the repository root. Measurements swap
+# this file in throwaway commits pushed to the in-cluster server only.
+governedAgentValues: gitops/releases/governed-agent.yaml
+monitoring: true

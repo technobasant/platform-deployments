@@ -1,0 +1,10 @@
+# The application namespace opts into the platform's admission policies and the
+# restricted Pod Security Standard.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: governed-agent
+  labels:
+    platform.policy/enforce: "true"
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

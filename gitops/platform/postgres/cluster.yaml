@@ -1,0 +1,25 @@
+# Two instances: a primary and a streaming replica the operator promotes on failure.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ga-pg
+  namespace: governed-agent
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 2Gi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 512Mi}
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred
+  monitoring:
+    enablePodMonitor: true

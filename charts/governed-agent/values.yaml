@@ -30,6 +30,9 @@ otel:
 
 api:
   replicas: 5
+  # Free text recorded on the pod template; changing it ships a new revision of the
+  # same build (used to measure a healthy rollout).
+  revisionNote: initial
   resources:
     requests: {cpu: 100m, memory: 192Mi}
     limits: {cpu: "1", memory: 512Mi}

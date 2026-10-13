@@ -1,0 +1,64 @@
+{{- $r := .Values -}}
+{{/* wave -3: cluster services and operators (CRDs first) */}}
+{{ include "root.app" (dict "name" "metrics-server" "ns" "kube-system" "wave" -3 "source" (dict
+  "repoURL" "https://kubernetes-sigs.github.io/metrics-server" "chart" "metrics-server" "targetRevision" "3.14.0"
+  "helm" (dict "valuesObject" (dict "args" (list "--kubelet-insecure-tls"))))) }}
+---
+{{ include "root.app" (dict "name" "cnpg-operator" "ns" "cnpg-system" "wave" -3 "ssa" true "source" (dict
+  "repoURL" "https://cloudnative-pg.github.io/charts" "chart" "cloudnative-pg" "targetRevision" "0.29.1")) }}
+---
+{{ include "root.app" (dict "name" "argo-rollouts" "ns" "argo-rollouts" "wave" -3 "ssa" true "source" (dict
+  "repoURL" "https://argoproj.github.io/argo-helm" "chart" "argo-rollouts" "targetRevision" "2.43.7"
+  "helm" (dict "valuesObject" (dict "controller" (dict "replicas" 1))))) }}
+---
+{{ include "root.app" (dict "name" "kyverno" "ns" "kyverno" "wave" -3 "ssa" true "source" (dict
+  "repoURL" "https://kyverno.github.io/kyverno" "chart" "kyverno" "targetRevision" "3.9.1"
+  "helm" (dict "valuesObject" (dict
+     "admissionController" (dict "replicas" 1)
+     "backgroundController" (dict "replicas" 1)
+     "cleanupController" (dict "replicas" 1)
+     "reportsController" (dict "replicas" 1))))) }}
+{{- if $r.monitoring }}
+---
+{{ include "root.app" (dict "name" "kube-prometheus-stack" "ns" "monitoring" "wave" -3 "ssa" true "source" (dict
+  "repoURL" "https://prometheus-community.github.io/helm-charts" "chart" "kube-prometheus-stack" "targetRevision" "92.3.0"
+  "helm" (dict "valuesObject" (dict
+     "fullnameOverride" "kps"
+     "alertmanager" (dict "enabled" false)
+     "grafana" (dict "enabled" false)
+     "nodeExporter" (dict "enabled" false)
+     "kubeControllerManager" (dict "enabled" false)
+     "kubeScheduler" (dict "enabled" false)
+     "kubeEtcd" (dict "enabled" false)
+     "kubeProxy" (dict "enabled" false)
+     "prometheus" (dict "prometheusSpec" (dict
+        "retention" "12h"
+        "scrapeInterval" "15s"
+        "podMonitorSelectorNilUsesHelmValues" false
+        "serviceMonitorSelectorNilUsesHelmValues" false
+        "ruleSelectorNilUsesHelmValues" false
+        "resources" (dict "requests" (dict "cpu" "200m" "memory" "512Mi") "limits" (dict "memory" "1536Mi")))))))) }}
+---
+{{ include "root.app" (dict "name" "jaeger" "ns" "observability" "wave" -2 "source" (dict
+  "repoURL" "https://jaegertracing.github.io/helm-charts" "chart" "jaeger" "targetRevision" "4.16.0")) }}
+---
+{{ include "root.app" (dict "name" "otel-collector" "ns" "observability" "wave" -2 "source" (dict
+  "repoURL" "https://open-telemetry.github.io/opentelemetry-helm-charts" "chart" "opentelemetry-collector" "targetRevision" "0.175.1"
+  "helm" (dict "valuesObject" (dict
+     "mode" "deployment"
+     "image" (dict "repository" "otel/opentelemetry-collector-contrib")
+     "config" (dict
+        "exporters" (dict "otlp" (dict "endpoint" "jaeger.observability.svc:4317" "tls" (dict "insecure" true)))
+        "service" (dict "pipelines" (dict "traces" (dict "receivers" (list "otlp") "processors" (list "memory_limiter" "batch") "exporters" (list "otlp"))))))))) }}
+{{- end }}
+---
+{{/* wave -2: policy, wave -1: data, wave 0: the application */}}
+{{ include "root.app" (dict "name" "platform-policies" "ns" "kyverno" "wave" -2 "source" (dict
+  "repoURL" $r.repoURL "targetRevision" $r.targetRevision "path" "gitops/platform/policies")) }}
+---
+{{ include "root.app" (dict "name" "governed-agent-db" "ns" "governed-agent" "wave" -1 "source" (dict
+  "repoURL" $r.repoURL "targetRevision" $r.targetRevision "path" "gitops/platform/postgres")) }}
+---
+{{ include "root.app" (dict "name" "governed-agent" "ns" "governed-agent" "wave" 0 "source" (dict
+  "repoURL" $r.repoURL "targetRevision" $r.targetRevision "path" "charts/governed-agent"
+  "helm" (dict "releaseName" "ga" "valueFiles" (list (printf "../../%s" $r.governedAgentValues))))) }}
