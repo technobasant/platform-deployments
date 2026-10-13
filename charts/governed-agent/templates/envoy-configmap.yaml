@@ -22,6 +22,18 @@ data:
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                     stat_prefix: ingress
+                    # One line per 5xx, with Envoy's response flags (UC: upstream
+                    # connection closed, UF: connect failure, FI: injected fault, ...).
+                    access_log:
+                      - name: envoy.access_loggers.stdout
+                        filter:
+                          status_code_filter:
+                            comparison: {op: GE, value: {default_value: 500, runtime_key: access_log.min_status}}
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                          log_format:
+                            text_format_source:
+                              inline_string: "[%START_TIME%] %REQ(:METHOD)% %REQ(:PATH)% %RESPONSE_CODE% flags=%RESPONSE_FLAGS% upstream=%UPSTREAM_TRANSPORT_FAILURE_REASON% dur=%DURATION%ms\n"
                     route_config:
                       # Every reply names the release that served it, fault replies
                       # included, so a load generator can count hits per release.
@@ -32,7 +44,14 @@ data:
                           domains: ["*"]
                           routes:
                             - match: {prefix: "/"}
-                              route: {cluster: api, timeout: 120s}
+                              route:
+                                cluster: api
+                                timeout: 120s
+                                # Safe for any method: retried only if the app never saw
+                                # the request (a kept-alive connection it had just closed).
+                                retry_policy:
+                                  retry_on: reset-before-request,connect-failure
+                                  num_retries: 1
                     http_filters:
                       # Inert at 0%; runtime keys fault.http.abort.abort_percent and
                       # fault.http.delay.fixed_delay_percent switch it on per revision.
@@ -52,6 +71,14 @@ data:
         - name: api
           type: STATIC
           connect_timeout: 1s
+          # Close idle connections to the app before uvicorn does (its keep-alive
+          # timeout is 5 s), so Envoy never sends a request on a connection the app
+          # is closing.
+          typed_extension_protocol_options:
+            envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+              "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+              common_http_protocol_options: {idle_timeout: 4s}
+              explicit_http_config: {http_protocol_options: {}}
           load_assignment:
             cluster_name: api
             endpoints:

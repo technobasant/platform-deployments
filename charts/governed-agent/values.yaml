@@ -70,6 +70,12 @@ api:
       p95MaxMs: 500
       # ...and only when it is also this many times the stable pods' p95.
       p95MaxRatioToStable: 2
+    # The last step before promotion: the canary must have served at least this many
+    # requests. Every check above passes on no data, so without this a canary that
+    # saw no traffic would be promoted on no evidence (it happened; MEASUREMENTS.md).
+    evidence:
+      minRequests: 30
+      window: 3m
   hpa:
     enabled: true
     minReplicas: 5

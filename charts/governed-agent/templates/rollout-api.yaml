@@ -28,6 +28,12 @@ spec:
           - name: canary-hash
             valueFrom: {podTemplateHashValue: Latest}
       steps: {{- toYaml .Values.api.canary.steps | nindent 8 }}
+        - analysis:
+            templates:
+              - templateName: {{ include "ga.fullname" . }}-api-evidence
+            args:
+              - name: canary-hash
+                valueFrom: {podTemplateHashValue: Latest}
   template:
     metadata:
       labels: {{- include "ga.selector" (dict "component" "api" "root" .) | nindent 8 }}

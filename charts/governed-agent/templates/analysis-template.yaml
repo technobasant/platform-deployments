@@ -45,3 +45,26 @@ spec:
               > on() ({{ $a.p95MaxRatioToStable }} * histogram_quantile(0.95, sum by (le) (rate(envoy_http_downstream_rq_time_bucket{ {{- $stable -}} }[{{ $a.window }}]))))
             )
             or on() vector(0)
+---
+{{- $e := .Values.api.canary.evidence }}
+# Run once, as the last canary step: no promotion without enough requests to judge.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "ga.fullname" . }}-api-evidence
+  labels: {{- include "ga.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: canary-hash
+    - name: prometheus
+      value: http://kps-prometheus.monitoring.svc:9090
+  metrics:
+    - name: canary-requests
+      count: 1
+      successCondition: "result[0] >= {{ $e.minRequests }}"
+      failureCondition: "result[0] < {{ $e.minRequests }}"
+      provider:
+        prometheus:
+          address: "{{`{{args.prometheus}}`}}"
+          query: |
+            sum(increase(envoy_http_downstream_rq_total{ {{- $sel -}} }[{{ $e.window }}])) or vector(0)

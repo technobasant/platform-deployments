@@ -11,7 +11,7 @@ for i in $(seq "$runs"); do
   wait_healthy 600
   good=$(stable_note)
   note="bad-r$i-$(date +%H%M%S)"
-  scripts/load.sh start "canary-$i" "$rate" 3m bad- >/dev/null
+  scripts/load.sh start "canary-$i" "$rate" 4m bad- >/dev/null
   sleep 20
   t0=$(now)
   scripts/release.sh "$note" "$abort" >/dev/null
