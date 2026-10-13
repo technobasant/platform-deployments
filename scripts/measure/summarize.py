@@ -44,20 +44,33 @@ if b:
     table([[label] + [fmt(r[k], 0) for r in b] + [fmt(med([r[k] for r in b]), 0)] for k, label in keys],
           ["seconds"] + [f"run {r['run']}" for r in b] + ["median"])
 
-ro = load("rollout")
-if ro:
-    print(f"### Good release through the canary, {ro[0].get('rate', 20)} req/s\n")
+def rollout_table(ro: list[dict]) -> None:
     rows = []
     for r in ro:
         k = r["k6"]
-        rows.append([str(r["run"]), fmt(r["sync_s"]), fmt(r["promotion_s"]), str(k["requests"]), str(k["failed"]),
-                     fmt(k["p50_ms"]), fmt(k["p95_ms"]), fmt(k["max_ms"], 0), str(k["dropped_iterations"])])
-    rows.append(["median", fmt(med([r["sync_s"] for r in ro])), fmt(med([r["promotion_s"] for r in ro])),
+        rows.append([str(r["run"]), r.get("outcome", "promoted"),
+                     fmt(r["sync_s"]) if "sync_s" in r else "", fmt(r["promotion_s"]) if "promotion_s" in r else "",
+                     str(k["requests"]), str(k["failed"]), fmt(k["p50_ms"]), fmt(k["p95_ms"]), fmt(k["max_ms"], 0),
+                     str(k["dropped_iterations"])])
+    ok = [r for r in ro if r.get("outcome", "promoted") == "promoted"]
+    rows.append(["median", f"{len(ok)}/{len(ro)} promoted", fmt(med([r["sync_s"] for r in ro if "sync_s" in r])),
+                 fmt(med([r["promotion_s"] for r in ok])),
                  fmt(med([r["k6"]["requests"] for r in ro]), 0), fmt(med([r["k6"]["failed"] for r in ro]), 0),
                  fmt(med([r["k6"]["p50_ms"] for r in ro])), fmt(med([r["k6"]["p95_ms"] for r in ro])),
                  fmt(med([r["k6"]["max_ms"] for r in ro]), 0), fmt(med([r["k6"]["dropped_iterations"] for r in ro]), 0)])
-    table(rows, ["run", "push → new ReplicaSet (s)", "new ReplicaSet → fully promoted (s)", "requests",
+    table(rows, ["run", "outcome", "push → new ReplicaSet (s)", "new ReplicaSet → promoted (s)", "requests",
                  "failed", "p50 ms", "p95 ms", "max ms", "dropped"])
+
+
+ro = load("rollout")
+if ro:
+    print(f"### Good release through the canary, {ro[0].get('rate', 20)} req/s, p95 judged against stable\n")
+    rollout_table(ro)
+
+ra = load("rollout-absolute-p95")
+if ra:
+    print("### First attempt: good release, 20 req/s, absolute p95 threshold only\n")
+    rollout_table(ra)
 
 bc = load("bad-canary")
 if bc:

@@ -81,9 +81,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
+          # Outlives the sidecar's drain (below), so Envoy never forwards to a closed app.
           lifecycle:
             preStop:
-              exec: {command: ["python", "-c", "import time; time.sleep(5)"]}
+              exec: {command: ["python", "-c", "import time; time.sleep(15)"]}
           resources: {{- toYaml .Values.api.resources | nindent 12 }}
           securityContext: {{- include "ga.containerSecurity" (dict "uid" 10001) | nindent 12 }}
           volumeMounts:
@@ -99,6 +100,10 @@ spec:
             # Envoy starts one worker per visible CPU (every host CPU on kind).
             - --concurrency
             - "2"
+            - --drain-strategy
+            - immediate
+            - --drain-time-s
+            - "8"
             {{- if $faulty }}
             - --config-yaml
             - {{ printf "{layered_runtime: {layers: [{name: fault, static_layer: {fault.http.abort.abort_percent: %d, fault.http.abort.http_status: %d, fault.http.delay.fixed_delay_percent: %d, fault.http.delay.fixed_duration_ms: %d}}]}}" (int $f.abortPercent) (int $f.abortStatus) (int $f.delayPercent) (int $f.delayMs) | quote }}
@@ -114,9 +119,19 @@ spec:
             httpGet: {path: /ready, port: envoy-admin}
             periodSeconds: 3
             timeoutSeconds: 2
+          # On shutdown, drain before exiting: Envoy answers each open keep-alive
+          # connection once more with "Connection: close", so clients reconnect through
+          # the Service to another pod instead of reusing a connection to this one.
           lifecycle:
             preStop:
-              exec: {command: ["/bin/sh", "-c", "sleep 5"]}
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - >-
+                    exec 3<>/dev/tcp/127.0.0.1/9901 &&
+                    printf 'POST /drain_listeners?graceful HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n' >&3 &&
+                    cat <&3 >/dev/null; sleep 10
           resources: {{- toYaml .Values.api.envoyResources | nindent 12 }}
           securityContext: {{- include "ga.containerSecurity" (dict "uid" 101) | nindent 12 }}
           volumeMounts:
