@@ -87,6 +87,10 @@ spec:
             - --config-yaml
             - {{ printf "{layered_runtime: {layers: [{name: fault, static_layer: {fault.http.abort.abort_percent: %d, fault.http.abort.http_status: %d, fault.http.delay.fixed_delay_percent: %d, fault.http.delay.fixed_duration_ms: %d}}]}}" (int $f.abortPercent) (int $f.abortStatus) (int $f.delayPercent) (int $f.delayMs) | quote }}
             {{- end }}
+          env:
+            - name: RELEASE_NOTE
+              valueFrom:
+                fieldRef: {fieldPath: "metadata.annotations['release-note']"}
           ports:
             - {name: proxy, containerPort: 8080}
             - {name: envoy-admin, containerPort: 9901}

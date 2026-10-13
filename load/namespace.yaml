@@ -1,0 +1,7 @@
+# The only namespace, besides the web UI, that the api's NetworkPolicy admits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: load
+  labels:
+    pod-security.kubernetes.io/enforce: restricted

@@ -23,6 +23,10 @@ data:
                     "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                     stat_prefix: ingress
                     route_config:
+                      # Every reply names the release that served it, fault replies
+                      # included, so a load generator can count hits per release.
+                      response_headers_to_add:
+                        - header: {key: x-release, value: "%ENVIRONMENT(RELEASE_NOTE)%"}
                       virtual_hosts:
                         - name: api
                           domains: ["*"]
