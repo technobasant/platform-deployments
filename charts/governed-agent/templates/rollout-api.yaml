@@ -57,6 +57,7 @@ spec:
             - {name: GA_MODEL, value: {{ .Values.model | quote }}}
             - {name: GA_MCP_URL, value: "http://{{ include "ga.fullname" . }}-mcp:8001/mcp"}
             - {name: GA_API_HOST, value: "0.0.0.0"}
+            - {name: GA_OUTBOX_POLL_S, value: {{ .Values.api.outboxPollSeconds | quote }}}
             - {name: OTEL_SERVICE_NAME, value: governed-agent-api}
           ports:
             - {name: http, containerPort: 8000}

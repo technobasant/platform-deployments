@@ -15,8 +15,23 @@ spec:
       database: app
       owner: app
   resources:
-    requests: {cpu: 100m, memory: 256Mi}
+    requests: {cpu: 250m, memory: 256Mi}
     limits: {memory: 512Mi}
+  # The primary's liveness probe also checks that it can reach the API server and its
+  # replica, with 1 s timeouts by default. While the API server was busy during
+  # bootstrap, that check failed and the kubelet restarted a healthy primary. Five
+  # seconds still catches a real partition within a probe or two.
+  probes:
+    liveness:
+      timeoutSeconds: 12
+      periodSeconds: 10
+      failureThreshold: 3
+      isolationCheck:
+        enabled: true
+        requestTimeout: 5000
+        connectionTimeout: 5000
+    readiness:
+      timeoutSeconds: 5
   affinity:
     enablePodAntiAffinity: true
     topologyKey: kubernetes.io/hostname

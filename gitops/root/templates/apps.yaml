@@ -52,6 +52,8 @@
      "mode" "deployment"
      "image" (dict "repository" "otel/opentelemetry-collector-contrib")
      "resources" (dict "requests" (dict "cpu" "50m" "memory" "128Mi") "limits" (dict "memory" "384Mi"))
+     "startupProbe" (dict "httpGet" (dict "port" 13133 "path" "/") "periodSeconds" 2 "timeoutSeconds" 2 "failureThreshold" 90)
+     "livenessProbe" (dict "httpGet" (dict "port" 13133 "path" "/") "timeoutSeconds" 3 "failureThreshold" 3)
      "config" (dict
         "exporters" (dict "otlp" (dict "endpoint" "jaeger.observability.svc:4317" "tls" (dict "insecure" true)))
         "service" (dict "pipelines" (dict "traces" (dict "receivers" (list "otlp") "processors" (list "memory_limiter" "batch") "exporters" (list "otlp"))))))))) }}

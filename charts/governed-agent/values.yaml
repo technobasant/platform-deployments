@@ -29,6 +29,9 @@ otel:
   endpoint: http://otel-collector-opentelemetry-collector.observability.svc:4318
 
 api:
+  # Every api replica runs the outbox worker; 1 s (the app's default) times five
+  # replicas is five idle polls a second against PostgreSQL.
+  outboxPollSeconds: 5
   replicas: 5
   # Free text recorded on the pod template; changing it ships a new revision of the
   # same build (used to measure a healthy rollout).
