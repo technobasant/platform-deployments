@@ -1,0 +1,13 @@
+node/platform-worker2 cordoned
+Warning: ignoring DaemonSet-managed Pods: kube-system/kindnet-mw7pz, kube-system/kube-proxy-4w9gk
+evicting pod local-git/git-server-b4496c7cb-clwpr
+evicting pod governed-agent/ga-api-6c8c4d4b68-p9nlm
+evicting pod governed-agent/ga-api-6c8c4d4b68-jckzt
+evicting pod governed-agent/ga-pg-2
+evicting pod governed-agent/ga-migrate-tz7pc
+pod/ga-migrate-tz7pc evicted
+pod/ga-pg-2 evicted
+pod/ga-api-6c8c4d4b68-jckzt evicted
+pod/ga-api-6c8c4d4b68-p9nlm evicted
+pod/git-server-b4496c7cb-clwpr evicted
+node/platform-worker2 drained

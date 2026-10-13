@@ -1,0 +1,58 @@
+# kubectl create, namespace policy-check (platform.policy/enforce=true), 2026-10-13T16:55:36Z
+
+## good
+ADMITTED: pod/good created (server dry run)
+
+## bad-latest
+REJECTED:
+  Error from server: error when creating "bad-latest.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Pod/policy-check/bad-latest was blocked due to the following policies 
+  
+  disallow-latest-tag:
+    require-explicit-tag: 'validation failure: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag.'
+
+## bad-untagged
+REJECTED:
+  Error from server: error when creating "bad-untagged.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Pod/policy-check/bad-untagged was blocked due to the following policies 
+  
+  disallow-latest-tag:
+    require-explicit-tag: 'validation failure: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag.'
+
+## bad-no-resources
+REJECTED:
+  Error from server: error when creating "bad-no-resources.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Pod/policy-check/bad-no-resources was blocked due to the following policies 
+  
+  require-requests-limits:
+    containers-have-resources: 'validation error: Every container needs cpu and memory requests and a memory limit. rule containers-have-resources failed at path /spec/containers/0/resources/limits/'
+
+## bad-root
+REJECTED:
+  Error from server: error when creating "bad-root.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Pod/policy-check/bad-root was blocked due to the following policies 
+  
+  require-run-as-non-root:
+    run-as-non-root: 'validation error: Set runAsNonRoot: true on the pod or on every container. rule run-as-non-root[0] failed at path /spec/securityContext/runAsNonRoot/ rule run-as-non-root[1] failed at path /spec/containers/0/securityContext/'
+
+## bad-privileged
+REJECTED:
+  Error from server: error when creating "bad-privileged.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Pod/policy-check/bad-privileged was blocked due to the following policies 
+  
+  disallow-privileged:
+    no-privileged: 'validation error: Privileged containers and allowPrivilegeEscalation: true are not allowed. rule no-privileged failed at path /spec/containers/0/securityContext/privileged/'
+
+## deploy-latest
+REJECTED:
+  Error from server: error when creating "deploy-latest.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+  
+  resource Deployment/policy-check/deploy-latest was blocked due to the following policies 
+  
+  disallow-latest-tag:
+    autogen-require-explicit-tag: 'validation failure: Image tag '':latest'' (or no tag) is not allowed; pin an immutable tag.'

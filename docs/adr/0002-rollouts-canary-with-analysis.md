@@ -25,6 +25,11 @@ every pod. The only signal that catches that is the traffic itself.
     replaces, not against a number that the whole cluster can cross at once.
 * One failed measurement aborts the rollout (`failureLimit: 0`), which scales the
   canary away and leaves the stable ReplicaSet serving.
+* Every check above passes when there is no data, so the last step before
+  promotion asks one more question: did the canary serve at least 30 requests in
+  the past three minutes? If not, the rollout aborts. Without this step a bad
+  release was promoted during a host stall, because the load had stopped before the
+  canary became Ready and every measurement saw nothing.
 * mcp and web stay Deployments. They are not on the request path the analysis
   measures, and a canary without a metric is just a slower rolling update.
 
@@ -39,6 +44,10 @@ every pod. The only signal that catches that is the traffic itself.
 * `failureLimit: 0` with a 30 s window is strict. A brief error burst on a good
   release will abort it; MEASUREMENTS.md reports every good-release run, aborted
   ones included.
+* No traffic, no release. A change shipped when nothing is calling the api aborts
+  at the evidence step and the stable version keeps serving. To ship in a quiet
+  period, send synthetic traffic (that is how this repository's own platform changes
+  were rolled out) or promote by hand, which is a decision someone signs.
 * The comparison needs stable pods serving traffic. Background analysis ends at
   promotion, so they exist for every measurement; if they did not, the stable p95
   would be undefined and the query returns 0 (pass), leaving the error-rate check.

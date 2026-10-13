@@ -18,6 +18,11 @@ fault switch, and the brief is to deploy it unchanged.
 * Envoy adds an `x-release` header to every reply, so the load generator can count
   requests per release.
 * Probes go to the application directly, around Envoy.
+* Envoy logs every 5xx with its response flags, closes idle connections to the app
+  after 4 s (before uvicorn's 5 s keep-alive timeout can close them under it),
+  retries once a request the app never received, and on shutdown drains: each open
+  client connection gets `Connection: close` on its next response, and the app
+  outlives the drain by 5 s.
 
 ## Consequences
 

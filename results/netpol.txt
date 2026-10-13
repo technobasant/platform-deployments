@@ -1,0 +1,3 @@
+# GET http://ga-api.governed-agent.svc/healthz, 5 s timeout, 2026-10-13T16:55:38Z
+from namespace load: 200 exit=0
+from namespace default: 000 exit=28

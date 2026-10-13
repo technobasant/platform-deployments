@@ -31,9 +31,9 @@ def table(rows: list[list[str]], head: list[str]) -> None:
 bl = load("baseline")
 if bl:
     print("### Baseline, no rollout, 60 s per rate\n")
-    table([[str(r["rate"]), str(r["k6"]["requests"]), str(r["k6"]["failed"]), fmt(r["k6"]["p50_ms"]),
+    table([[r.get("when", ""), str(r["rate"]), str(r["k6"]["requests"]), str(r["k6"]["failed"]), fmt(r["k6"]["p50_ms"]),
             fmt(r["k6"]["p95_ms"]), fmt(r["k6"]["p99_ms"]), fmt(r["k6"]["max_ms"], 0)] for r in bl],
-          ["req/s", "requests", "failed", "p50 ms", "p95 ms", "p99 ms", "max ms"])
+          ["when", "req/s", "requests", "failed", "p50 ms", "p95 ms", "p99 ms", "max ms"])
 
 b = load("bootstrap")
 if b:
@@ -123,3 +123,15 @@ if d:
                  fmt(med([r["k6"]["p95_ms"] for r in d])), fmt(med([r["k6"]["max_ms"] for r in d]), 0)])
     table(rows, ["run", "node", "pods on node", "api pods on node", "drain (s)", "result", "requests", "failed",
                  "p95 ms", "max ms"])
+
+steps = [("rollout-absolute-p95", "absolute p95 threshold only"),
+         ("rollout-before-drain-fix", "p95 judged against stable"),
+         ("rollout-after-drain-fix", "+ Envoy drains client connections on shutdown"),
+         ("rollout", "+ upstream idle timeout 4 s, retry if the app never saw the request")]
+have = [(n, label, load(n)) for n, label in steps if load(n)]
+if have:
+    print("### Failed requests during good releases, by platform change (20 req/s, ~6,000 requests per run)\n")
+    table([[label, ", ".join(str(r["k6"]["failed"]) for r in rs),
+            ", ".join(r.get("outcome", "promoted") for r in rs),
+            fmt(med([r["k6"]["p95_ms"] for r in rs]))] for _, label, rs in have],
+          ["platform at that point", "failed requests per run", "outcome per run", "median p95 ms"])

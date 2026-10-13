@@ -1,0 +1,21 @@
+node/platform-worker2 cordoned
+Warning: ignoring DaemonSet-managed Pods: kube-system/kindnet-mw7pz, kube-system/kube-proxy-4w9gk
+evicting pod governed-agent/ga-api-6c8c4d4b68-jnhnh
+evicting pod local-git/git-server-b4496c7cb-vs8nt
+evicting pod governed-agent/ga-api-6c8c4d4b68-m42qb
+evicting pod governed-agent/ga-api-6c8c4d4b68-w66kv
+evicting pod governed-agent/ga-mcp-9ddf554-sxss2
+evicting pod governed-agent/ga-pg-2
+evicting pod governed-agent/ga-web-664f55dcb6-l9z9h
+error when evicting pods/"ga-api-6c8c4d4b68-w66kv" -n "governed-agent" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+pod/ga-pg-2 evicted
+pod/ga-web-664f55dcb6-l9z9h evicted
+pod/ga-mcp-9ddf554-sxss2 evicted
+evicting pod governed-agent/ga-api-6c8c4d4b68-w66kv
+error when evicting pods/"ga-api-6c8c4d4b68-w66kv" -n "governed-agent" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod governed-agent/ga-api-6c8c4d4b68-w66kv
+pod/ga-api-6c8c4d4b68-jnhnh evicted
+pod/ga-api-6c8c4d4b68-m42qb evicted
+pod/git-server-b4496c7cb-vs8nt evicted
+pod/ga-api-6c8c4d4b68-w66kv evicted
+node/platform-worker2 drained
