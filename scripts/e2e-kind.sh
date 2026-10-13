@@ -17,6 +17,7 @@ helm upgrade --install argo-rollouts argo-rollouts --repo https://argoproj.githu
   --set controller.replicas=1 >/dev/null
 
 step "postgres"
+kubectl apply -f gitops/platform/postgres/namespace.yaml >/dev/null
 kubectl apply -f gitops/platform/postgres/ >/dev/null
 until kubectl -n governed-agent get cluster.postgresql.cnpg.io/ga-pg >/dev/null 2>&1; do sleep 2; done
 kubectl -n governed-agent wait cluster.postgresql.cnpg.io/ga-pg --for=condition=Ready --timeout=8m >/dev/null
@@ -25,8 +26,11 @@ step "governed-agent chart"
 helm upgrade --install ga charts/governed-agent -n governed-agent \
   -f gitops/releases/governed-agent.yaml \
   --set monitoring.podMonitor=false --set otel.enabled=false \
-  --wait --timeout 10m >/dev/null
-kubectl -n governed-agent wait rollout/ga-api --for=jsonpath='{.status.phase}'=Healthy --timeout=5m >/dev/null
+  --wait=hookOnly --timeout 10m >/dev/null
+# Helm's default watcher never sees the Rollout or the HPA (no metrics-server here) as
+# ready, so Helm waits for the migration hook only and kubectl waits for the rest.
+kubectl -n governed-agent rollout status deploy/ga-mcp deploy/ga-web --timeout=8m >/dev/null
+kubectl -n governed-agent wait rollout/ga-api --for=jsonpath='{.status.phase}'=Healthy --timeout=8m >/dev/null
 
 step "smoke test"
 out=$(scripts/demo.sh)

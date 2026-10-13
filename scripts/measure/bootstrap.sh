@@ -4,8 +4,8 @@
 # built images are copied in by `kind load` and timed separately.
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
-runs=${1:-3}
-for i in $(seq "$runs"); do
+runs=${1:-3} first=${2:-1}
+for i in $(seq "$first" $((first + runs - 1))); do
   kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true
   t0=$(now)
   kind create cluster --config kind/cluster.yaml --image "$KIND_NODE_IMAGE" >/dev/null 2>&1
